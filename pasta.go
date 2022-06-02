@@ -5,10 +5,15 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"sync/atomic"
 	"time"
 )
 
-var pasta = ""
+var pasta atomic.Value
+
+func init() {
+	pasta.Store("")
+}
 
 //go:embed views/index.html
 var indexHtml string
@@ -16,7 +21,8 @@ var indexTemplate = template.Must(template.New("index").Parse(indexHtml))
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/" {
-		err := indexTemplate.Execute(w, pasta)
+		p := pasta.Load().(string)
+		err := indexTemplate.Execute(w, p)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -27,7 +33,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		pasta = r.PostFormValue("pasta")
+		p := r.PostFormValue("pasta")
+		pasta.Store(p)
 		http.Redirect(w, r, "/#saved", 302)
 	} else {
 		http.NotFound(w, r)
